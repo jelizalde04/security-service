@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2
+celery
+redis
+graphene
+websockets
+zeep  # Para SOAP
