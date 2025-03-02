@@ -1,17 +1,17 @@
-# Use Python 3.9 as base
+# Use official Python image
 FROM python:3.9
 
 # Set working directory
 WORKDIR /app
 
-# Copy necessary files
-COPY . .
+# Copy all files to the container
+COPY . /app
 
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port 3002
+# Expose the microservice port
 EXPOSE 3002
 
-# Start the application
+# Run the application
 CMD ["python", "main.py"]

@@ -1,13 +1,29 @@
-from fastapi import FastAPI
-import uvicorn
-from routes.errorHandlerRoutes import router as error_router
-from db import Base, engine
+from flask import Flask
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+from routes.errorHandlerRoutes import error_handler_bp
+from utils.swagger import setup_swagger
+import logging
 
-Base.metadata.create_all(bind=engine)
+# Load environment variables
+load_dotenv()
 
-app = FastAPI(title="API Error Handler Microservice", version="1.0")
+# Initialize Flask app
+app = Flask(__name__)
 
-app.include_router(error_router)
+# Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Register error handling routes
+app.register_blueprint(error_handler_bp, url_prefix="/errors")
+
+# Set up Swagger for API documentation
+setup_swagger(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Start Flask server
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3002)
+    app.run(host="0.0.0.0", port=3002, debug=True)

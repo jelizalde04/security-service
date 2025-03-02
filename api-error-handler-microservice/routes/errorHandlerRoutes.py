@@ -1,6 +1,9 @@
-from fastapi import APIRouter
-from controllers.errorHandlerController import router as error_router
+from flask import Blueprint
+from controllers.errorHandlerController import log_error, get_errors
 
-router = APIRouter()
+# Create a Blueprint for error handling routes
+error_handler_bp = Blueprint("errors", __name__)
 
-router.include_router(error_router, prefix="/errors", tags=["Error Handling"])
+# Define API routes
+error_handler_bp.route("/log", methods=["POST"])(log_error)
+error_handler_bp.route("/list", methods=["GET"])(get_errors)
