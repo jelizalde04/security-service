@@ -1,14 +1,31 @@
-from celery import Celery
-import os
+from models.AsyncTask import AsyncTask
+from utils.taskQueue import execute_async_task
+from utils.logger import log_to_file
 
-REDIS_URL = os.getenv("REDIS_URL")
+class AsyncHandlerService:
+    """
+    Manages asynchronous task execution and monitoring.
+    """
+    def __init__(self):
+        self.task_store = {}  # In-memory database for task tracking
 
-celery_app = Celery(
-    "tasks",
-    broker=REDIS_URL,
-    backend=REDIS_URL
-)
+    def process_task(self, task_type):
+        """
+        Initiates an asynchronous task and stores its ID.
+        """
+        task = AsyncTask(task_type)
+        self.task_store[task.task_id] = "PENDING"
 
-@celery_app.task
-def async_task(data):
-    return f"Processed {data} asynchronously"
+        # Execute task asynchronously
+        execute_async_task.delay(task.task_id, task_type)
+
+        # Log task creation
+        log_to_file(f"Task Created: {task.task_id} - {task_type}")
+
+        return task.task_id
+
+    def get_task_status(self, task_id):
+        """
+        Returns the status of a given task.
+        """
+        return self.task_store.get(task_id, "UNKNOWN")

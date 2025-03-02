@@ -1,17 +1,29 @@
-from fastapi import FastAPI
-from db import Base, engine
-from routes.asyncHandlerRoutes import router as async_routes
-import uvicorn
+from flask import Flask
+from flask_cors import CORS
+from dotenv import load_dotenv
+import os
+from routes.asyncHandlerRoutes import async_handler_bp
+from utils.swagger import setup_swagger
+import logging
 
-Base.metadata.create_all(bind=engine)
+# Load environment variables
+load_dotenv()
 
-app = FastAPI(
-    title="Async Handler Microservice",
-    description="Handles async tasks via Celery + Redis",
-    version="1.0.0"
-)
+# Initialize Flask app
+app = Flask(__name__)
 
-app.include_router(async_routes)
+# Enable CORS for all routes
+CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Register async handler routes
+app.register_blueprint(async_handler_bp, url_prefix="/async")
+
+# Set up Swagger for API documentation
+setup_swagger(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Start Flask server
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3003)
+    app.run(host="0.0.0.0", port=3003, debug=True)

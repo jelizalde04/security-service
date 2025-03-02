@@ -1,10 +1,9 @@
-from sqlalchemy import Column, Integer, String, Boolean
-from db import Base
+import uuid
 
-class AsyncTask(Base):
-    __tablename__ = "async_tasks"
-
-    id = Column(Integer, primary_key=True, index=True)
-    task_name = Column(String, index=True)
-    status = Column(String, default="pending")
-    result = Column(String, nullable=True)
+class AsyncTask:
+    """
+    Represents an asynchronous task.
+    """
+    def __init__(self, task_type):
+        self.task_id = str(uuid.uuid4())  # Generate a unique task ID
+        self.task_type = task_type

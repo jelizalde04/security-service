@@ -1,10 +1,17 @@
+# Use official Python image
 FROM python:3.9
 
+# Set working directory
 WORKDIR /app
 
-COPY requirements.txt requirements.txt
+# Copy all files to the container
+COPY . /app
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Expose the microservice port
+EXPOSE 3003
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3003"]
+# Run the application
+CMD ["python", "main.py"]
