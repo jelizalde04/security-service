@@ -1,30 +1,31 @@
-from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-import os
+from models.User import User
+from utils.cryptoHelper import hash_password, verify_password
 
-SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+class AuthService:
+    """
+    Handles user authentication and registration.
+    """
+    def __init__(self):
+        self.users = []  # Simulated in-memory database
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    def create_user(self, email, password):
+        """
+        Creates a new user with a hashed password.
+        """
+        if any(user.email == email for user in self.users):
+            return {"error": "User already exists"}
+        
+        hashed_password = hash_password(password)
+        new_user = User(email, hashed_password)
+        self.users.append(new_user)
+        
+        return {"message": "User successfully registered"}
 
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-def verify_token(token: str):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
-    except JWTError:
+    def authenticate_user(self, email, password):
+        """
+        Authenticates a user by verifying password hash.
+        """
+        user = next((u for u in self.users if u.email == email), None)
+        if user and verify_password(password, user.password):
+            return {"id": user.id, "email": user.email}
         return None

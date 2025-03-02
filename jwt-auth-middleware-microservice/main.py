@@ -1,13 +1,34 @@
-from fastapi import FastAPI
-import uvicorn
-from routes.authRoutes import router as auth_router
-from db import Base, engine
+from flask import Flask
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager
+from dotenv import load_dotenv
+import os
+from routes.authRoutes import auth_bp
+from utils.swagger import setup_swagger
+import logging
 
-Base.metadata.create_all(bind=engine)
+# Load environment variables from .env file
+load_dotenv()
 
-app = FastAPI(title="JWT Auth Middleware Microservice", version="1.0")
+# Initialize Flask app
+app = Flask(__name__)
 
-app.include_router(auth_router)
+# Enable Cross-Origin Resource Sharing (CORS)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Configure JWT authentication
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "default_secret")
+jwt = JWTManager(app)
+
+# Register authentication routes
+app.register_blueprint(auth_bp, url_prefix="/auth")
+
+# Set up Swagger documentation
+setup_swagger(app)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+
+# Start the Flask server
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=3001)
+    app.run(host="0.0.0.0", port=3001, debug=True)

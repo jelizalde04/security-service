@@ -1,52 +1,76 @@
-name: Deploy JWT Auth Middleware Microservice
+name: JWT Auth Microservice CI/CD (Test Branch Only)
 
 on:
   push:
     branches:
-      - test
+      - test  # The pipeline runs ONLY when changes are pushed to 'test'
   pull_request:
     branches:
       - test
 
 jobs:
-  build-and-deploy:
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tests
-        run: pytest
-
-      - name: Build Docker image
-        run: docker build -t jwt-auth-middleware-microservice .
-
-      - name: Push Docker image
+      - name: Install Dependencies
         run: |
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-          docker tag jwt-auth-middleware-microservice mydockerhub/jwt-auth-middleware-microservice
-          docker push mydockerhub/jwt-auth-middleware-microservice
+          cd jwt-auth-middleware-microservice
+          pip install -r requirements.txt
 
-      - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ubuntu
+      - name: Run Tests
         run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            docker pull mydockerhub/jwt-auth-middleware-microservice
-            docker stop jwt-auth-container || true
-            docker rm jwt-auth-container || true
-            docker run -d --name jwt-auth-container -p 3001:3001 mydockerhub/jwt-auth-middleware-microservice
-          EOF
+          cd jwt-auth-middleware-microservice
+          pytest  # Ensure you have test files in your microservice
+
+  build-and-push-docker:
+    name: Build and Push Docker Image
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          cd jwt-auth-middleware-microservice
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/jwt-auth-microservice:test .
+
+      - name: Push Docker Image to Docker Hub (Test Tag)
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/jwt-auth-microservice:test
+
+  deploy:
+    name: Deploy to AWS EC2 (Test)
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Stopping and removing old test container..."
+            docker stop jwt-auth-microservice-test || true
+            docker rm jwt-auth-microservice-test || true
+
+            echo "Pulling the latest test image..."
+            docker pull ${{ secrets.DOCKER_USERNAME }}/jwt-auth-microservice:test
+
+            echo "Running new test container..."
+            docker run -d --name jwt-auth-microservice-test -p 3001:3001 --env-file .env ${{ secrets.DOCKER_USERNAME }}/jwt-auth-microservice:test

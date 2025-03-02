@@ -1,6 +1,10 @@
-from fastapi import APIRouter
-from controllers.authController import router as auth_router
+from flask import Blueprint
+from controllers.authController import login, register, refresh_token
 
-router = APIRouter()
+# Create a Blueprint for authentication routes
+auth_bp = Blueprint("auth", __name__)
 
-router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+# Define authentication endpoints
+auth_bp.route("/login", methods=["POST"])(login)
+auth_bp.route("/register", methods=["POST"])(register)
+auth_bp.route("/refresh", methods=["POST"])(refresh_token)

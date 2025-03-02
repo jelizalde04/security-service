@@ -1,17 +1,17 @@
-# Usar Python 3.9 como base
+# Use official Python image
 FROM python:3.9
 
-# Establecer el directorio de trabajo
+# Set working directory inside the container
 WORKDIR /app
 
-# Copiar archivos necesarios
-COPY . .
+# Copy all files to the container
+COPY . /app
 
-# Instalar dependencias
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Exponer el puerto 3001
+# Expose the service port
 EXPOSE 3001
 
-# Comando de inicio
+# Command to run the application
 CMD ["python", "main.py"]

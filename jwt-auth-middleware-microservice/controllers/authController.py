@@ -1,33 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from models.User import User
-from services.authService import create_access_token, verify_password, hash_password
-from db import get_db
-from pydantic import BaseModel
+from flask import request, jsonify
+from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
+from services.authService import AuthService
 
-router = APIRouter()
+# Initialize authentication service
+auth_service = AuthService()
 
-class UserAuth(BaseModel):
-    username: str
-    password: str
+def login():
+    """
+    Authenticate user and generate JWT tokens.
+    """
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
 
-@router.post("/register")
-def register(user: UserAuth, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user.username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
+    user = auth_service.authenticate_user(email, password)
+    if not user:
+        return jsonify({"error": "Invalid credentials"}), 401
 
-    hashed_password = hash_password(user.password)
-    new_user = User(username=user.username, hashed_password=hashed_password)
-    db.add(new_user)
-    db.commit()
-    return {"message": "User registered successfully"}
+    # Generate JWT access and refresh tokens
+    access_token = create_access_token(identity=user["id"])
+    refresh_token = create_refresh_token(identity=user["id"])
+    
+    return jsonify({"access_token": access_token, "refresh_token": refresh_token}), 200
 
-@router.post("/login")
-def login(user: UserAuth, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.username == user.username).first()
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid credentials")
+def register():
+    """
+    Register a new user with hashed password.
+    """
+    data = request.json
+    email = data.get("email")
+    password = data.get("password")
 
-    access_token = create_access_token({"sub": db_user.username})
-    return {"access_token": access_token, "token_type": "bearer"}
+    user = auth_service.create_user(email, password)
+    return jsonify(user), 201
+
+@jwt_required(refresh=True)
+def refresh_token():
+    """
+    Refresh JWT access token.
+    """
+    current_user = get_jwt_identity()
+    new_token = create_access_token(identity=current_user)
+    return jsonify({"access_token": new_token}), 200
